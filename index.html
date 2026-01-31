@@ -73,59 +73,13 @@ a { color: var(--accent); text-decoration: none; }
    ============================================================ */
 .app {
   display: flex;
+  flex-direction: column;
   height: 100dvh;
   position: relative;
 }
 
-/* Sidebar */
-.sidebar {
-  width: 300px;
-  background: var(--bg-card);
-  border-right: 1px solid var(--separator);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  z-index: 20;
-  transition: transform .3s cubic-bezier(.32,.72,0,1);
-}
-.sidebar-header {
-  padding: var(--space-lg) var(--space-md) var(--space-md);
-  padding-top: calc(var(--safe-top) + var(--space-lg));
-  border-bottom: 1px solid var(--separator);
-}
-.sidebar-header h1 {
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -.02em;
-}
-.sidebar-scroll {
-  flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-.sidebar-section {
-  padding: var(--space-xs) 0;
-}
-.sidebar-section:not(:last-child) {
-  border-bottom: 1px solid var(--separator);
-}
-.sidebar-section-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--text-tertiary);
-  padding: var(--space-sm) var(--space-md) var(--space-xs);
-}
-.sidebar-lists, .sidebar-recipes {
-  padding: var(--space-xs) 0;
-}
-.sidebar-recipes-empty {
-  padding: var(--space-sm) var(--space-md);
-  font-size: 13px;
-  color: var(--text-tertiary);
-}
-.sidebar-list-item {
+/* List picker modal (replaces sidebar list switching) */
+.list-picker-item {
   display: flex;
   align-items: center;
   padding: var(--space-sm) var(--space-md);
@@ -133,44 +87,27 @@ a { color: var(--accent); text-decoration: none; }
   cursor: pointer;
   transition: background .15s;
   border-radius: var(--radius-sm);
-  margin: 2px var(--space-sm);
+  margin: 2px 0;
+  width: 100%;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
-.sidebar-list-item:hover { background: var(--separator); }
-.sidebar-list-item.active { background: var(--accent-light); color: var(--accent); }
-.sidebar-list-item .list-icon {
+.list-picker-item:hover { background: var(--separator); }
+.list-picker-item.active { background: var(--accent-light); color: var(--accent); }
+.list-picker-item .list-icon {
   width: 32px; height: 32px;
   border-radius: var(--radius-sm);
   display: flex; align-items: center; justify-content: center;
   font-size: 16px;
   flex-shrink: 0;
+  background: var(--separator);
 }
-.sidebar-list-item.active .list-icon { background: var(--accent); color: #fff; }
-.sidebar-list-item:not(.active) .list-icon { background: var(--separator); }
-/* Recipe sidebar items: emoji icon, green accent */
-.sidebar-recipes .sidebar-list-item .list-icon {
-  background: none;
-  font-size: 20px;
-}
-.sidebar-recipes .sidebar-list-item.active { background: var(--green-light); color: var(--green); }
-.sidebar-recipes .sidebar-list-item.active .list-icon { background: none; color: inherit; }
-.sidebar-list-item .list-name {
-  flex: 1;
-  font-size: 15px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sidebar-list-item .list-count {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-.sidebar-footer {
-  padding: var(--space-md);
-  border-top: 1px solid var(--separator);
-  padding-bottom: calc(var(--safe-bottom) + var(--space-md));
-}
+.list-picker-item.active .list-icon { background: var(--accent); color: #fff; }
+.list-picker-item .list-name { flex: 1; font-size: 15px; font-weight: 500; }
+.list-picker-item .list-count { font-size: 13px; color: var(--text-secondary); }
 .btn-new-list {
   display: flex;
   align-items: center;
@@ -184,24 +121,12 @@ a { color: var(--accent); text-decoration: none; }
   font-weight: 600;
   font-size: 15px;
   transition: background .15s;
-}
-.btn-new-list:hover { background: rgba(0,122,255,.2); }
-.btn-new-recipe {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  background: var(--green-light);
-  color: var(--green);
-  font-weight: 600;
-  font-size: 15px;
-  transition: background .15s;
+  border: none;
+  font: inherit;
+  cursor: pointer;
   margin-top: var(--space-sm);
 }
-.btn-new-recipe:hover { background: rgba(52,199,89,.2); }
+.btn-new-list:hover { background: rgba(0,122,255,.2); }
 
 /* Main panel */
 .main {
@@ -210,6 +135,7 @@ a { color: var(--accent); text-decoration: none; }
   flex-direction: column;
   min-width: 0;
   position: relative;
+  overflow: hidden;
 }
 .main-header {
   background: rgba(255,255,255,.85);
@@ -226,15 +152,42 @@ a { color: var(--accent); text-decoration: none; }
   z-index: 10;
   min-height: 56px;
 }
-.btn-menu {
-  display: none;
-  width: 36px; height: 36px;
+.main-title-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.main-title-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-xs) var(--space-sm);
+  margin: calc(-1 * var(--space-xs)) calc(-1 * var(--space-sm));
   border-radius: var(--radius-sm);
-  align-items: center; justify-content: center;
-  font-size: 20px;
+  background: none;
+  border: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.main-title-btn:hover { background: var(--separator); }
+.main-title-btn .main-title-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 17px;
+  font-weight: 600;
+}
+.main-title-chevron {
+  font-size: 12px;
+  color: var(--text-tertiary);
   flex-shrink: 0;
 }
-.btn-menu:hover { background: var(--separator); }
 .main-title {
   flex: 1;
   font-size: 17px;
@@ -242,7 +195,12 @@ a { color: var(--accent); text-decoration: none; }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
+.btn-new-recipe-header {
+  color: var(--green);
+}
+.btn-new-recipe-header:hover { background: var(--green-light); }
 .header-actions {
   display: flex;
   gap: var(--space-xs);
@@ -930,7 +888,88 @@ a { color: var(--accent); text-decoration: none; }
 }
 .btn-back-recipe:hover { background: var(--accent-light); }
 .main.recipe-mode .btn-back-recipe { display: flex; }
-.main.recipe-mode .btn-menu { display: none; }
+.main.tab-recepten .add-bar { display: none; }
+
+/* Overzicht alle recepten */
+.recipes-overview {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-md);
+  padding-bottom: calc(var(--safe-bottom) + var(--space-xl));
+}
+.recipes-overview-intro {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+  line-height: 1.5;
+}
+.recipes-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-md);
+}
+.recipe-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow .2s, transform .15s;
+  cursor: pointer;
+  padding: 0;
+  border: none;
+  color: inherit;
+}
+.recipe-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.recipe-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.recipe-card-image {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: var(--bg-grouped);
+  overflow: hidden;
+}
+.recipe-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.recipe-card-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: var(--text-tertiary);
+  background: var(--bg-grouped);
+}
+.recipe-card-body {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.recipe-card-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+.recipe-card-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
 
 .recipe-view {
   max-width: 600px;
@@ -1169,30 +1208,47 @@ a { color: var(--accent); text-decoration: none; }
 .btn-add-ingredient:hover { text-decoration: underline; }
 
 /* ============================================================
-   RESPONSIVE — mobile
+   TAB BAR
    ============================================================ */
-@media (max-width: 700px) {
-  .sidebar {
-    position: fixed;
-    inset: 0;
-    width: 100%;
-    max-width: 320px;
-    transform: translateX(-100%);
-    box-shadow: var(--shadow-lg);
-  }
-  .sidebar.open { transform: translateX(0); }
-  .sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    background: var(--bg-overlay);
-    z-index: 15;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .3s;
-  }
-  .sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
-  .btn-menu { display: flex; }
+.tabbar {
+  display: flex;
+  align-items: stretch;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--separator);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  flex-shrink: 0;
+  z-index: 20;
 }
+.tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--space-sm) var(--space-md);
+  padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+  background: none;
+  border: none;
+  font: inherit;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color .15s, background .15s;
+  min-height: 56px;
+}
+.tabbar-item:hover { background: var(--separator); color: var(--text-primary); }
+.tabbar-item[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+.tabbar-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.tabbar-label {
+  font-size: 11px;
+  font-weight: 500;
+}
+.tabbar-item[aria-selected="true"] .tabbar-label { font-weight: 600; }
 
 /* ============================================================
    ANIMATIONS
@@ -1228,42 +1284,19 @@ a { color: var(--accent); text-decoration: none; }
      APP SHELL
      ============================================================ -->
 <div class="app" id="app">
-  <!-- Sidebar backdrop (mobile) -->
-  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
-
-  <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Lijsten">
-    <div class="sidebar-header">
-      <h1>Boodschappen</h1>
-    </div>
-    <div class="sidebar-scroll" id="sidebarScroll">
-      <div class="sidebar-section">
-        <div class="sidebar-section-label">Lijsten</div>
-        <ul class="sidebar-lists" id="sidebarLists" role="listbox" aria-label="Alle lijsten"></ul>
-      </div>
-      <div class="sidebar-section">
-        <div class="sidebar-section-label">Recepten</div>
-        <ul class="sidebar-recipes" id="sidebarRecipes" role="listbox" aria-label="Alle recepten"></ul>
-      </div>
-    </div>
-    <div class="sidebar-footer">
-      <button class="btn-new-list" id="btnNewList" aria-label="Nieuwe lijst maken">
-        <span>+</span> Nieuwe lijst
-      </button>
-      <button class="btn-new-recipe" id="btnNewRecipe" aria-label="Nieuw recept maken">
-        <span>+</span> Nieuw recept
-      </button>
-    </div>
-  </aside>
-
   <!-- Main -->
   <main class="main" id="main">
     <header class="main-header">
-      <button class="btn-menu" id="btnMenu" aria-label="Menu openen">&#9776;</button>
-      <button class="btn-back-recipe" id="btnBackRecipe" aria-label="Terug naar lijst">
+      <button class="btn-back-recipe" id="btnBackRecipe" aria-label="Terug naar overzicht">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"/><polyline points="9,4 3,10 9,16"/></svg>
       </button>
-      <h2 class="main-title" id="mainTitle">Boodschappen</h2>
+      <div class="main-title-wrap">
+        <button type="button" class="main-title-btn" id="mainTitleBtn" aria-label="Lijst wisselen" style="display:none">
+          <span class="main-title-text" id="mainTitleText">Boodschappen</span>
+          <span class="main-title-chevron" aria-hidden="true">▾</span>
+        </button>
+        <h2 class="main-title" id="mainTitle">Boodschappen</h2>
+      </div>
       <div class="header-actions">
         <button class="btn-icon btn-reorder-cat" id="btnReorderCat" aria-label="Categorievolgorde aanpassen" title="Categorievolgorde aanpassen">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="4.5" x2="15" y2="4.5"/><line x1="3" y1="9" x2="15" y2="9"/><line x1="3" y1="13.5" x2="15" y2="13.5"/><polyline points="6,3 3,4.5 6,6"/><polyline points="12,7.5 15,9 12,10.5"/><polyline points="6,12 3,13.5 6,15"/></svg>
@@ -1276,6 +1309,9 @@ a { color: var(--accent); text-decoration: none; }
         </button>
         <button class="btn-icon btn-recipe-action" id="btnEditRecipe" aria-label="Recept bewerken" title="Recept bewerken" style="display:none">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="3.5" r="1"/><circle cx="9" cy="9" r="1"/><circle cx="9" cy="14.5" r="1"/></svg>
+        </button>
+        <button class="btn-icon btn-new-recipe-header" id="btnNewRecipeHeader" aria-label="Nieuw recept" title="Nieuw recept" style="display:none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="9" y1="4" x2="9" y2="14"/><line x1="4" y1="9" x2="14" y2="9"/></svg>
         </button>
       </div>
     </header>
@@ -1290,6 +1326,18 @@ a { color: var(--accent); text-decoration: none; }
       <div class="suggestions" id="suggestions" role="listbox" aria-label="Suggesties"></div>
     </div>
   </main>
+
+  <!-- Tab bar -->
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="Hoofdnavigatie">
+    <button type="button" class="tabbar-item" id="tabBoodschappen" role="tab" aria-selected="true" aria-label="Boodschappen">
+      <span class="tabbar-icon">🛒</span>
+      <span class="tabbar-label">Boodschappen</span>
+    </button>
+    <button type="button" class="tabbar-item" id="tabRecepten" role="tab" aria-selected="false" aria-label="Recepten">
+      <span class="tabbar-icon">🍳</span>
+      <span class="tabbar-label">Recepten</span>
+    </button>
+  </nav>
 </div>
 
 <!-- Modal -->
@@ -1655,6 +1703,8 @@ const State = (() => {
       }
     ],           // array of recipe objects
     activeRecipeId: null,  // null = show list, string = show recipe
+    showAllRecipes: false, // true = toon overzichtspagina met alle recepten
+    activeTab: 'boodschappen', // 'boodschappen' | 'recepten'
   };
 
   let state = Store.load() || structuredClone(defaults);
@@ -1667,6 +1717,178 @@ const State = (() => {
   if (!state.itemHistory) state.itemHistory = {};
   if (!state.categoryOverrides) state.categoryOverrides = {};
   if (!state.recipes) state.recipes = [];
+  // Load default recipes if none exist
+  if (state.recipes.length === 0) {
+    const defaultRecipes = [
+      {
+        name: 'Pasta Carbonara',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=800',
+        ingredients: [
+          { name: 'Spaghetti', quantity: 400, unit: 'gram' },
+          { name: 'Spekblokjes', quantity: 200, unit: 'gram' },
+          { name: 'Eieren', quantity: 4, unit: 'stuks' },
+          { name: 'Parmezaanse kaas', quantity: 100, unit: 'gram' },
+          { name: 'Knoflook', quantity: 2, unit: 'stuks' },
+          { name: 'Zwarte peper', quantity: 1, unit: 'theelepel' },
+        ],
+      },
+      {
+        name: 'Tomatensoep',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800',
+        ingredients: [
+          { name: 'Tomaten', quantity: 8, unit: 'stuks' },
+          { name: 'Ui', quantity: 1, unit: 'stuks' },
+          { name: 'Knoflook', quantity: 3, unit: 'stuks' },
+          { name: 'Groentebouillon', quantity: 500, unit: 'ml' },
+          { name: 'Tomatenpuree', quantity: 2, unit: 'eetlepel' },
+          { name: 'Basilicum', quantity: 1, unit: 'bos' },
+          { name: 'Olijfolie', quantity: 2, unit: 'eetlepel' },
+          { name: 'Suiker', quantity: 1, unit: 'theelepel' },
+        ],
+      },
+      {
+        name: 'Kip Teriyaki met Rijst',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1609183480237-ccbc4bbb3724?w=800',
+        ingredients: [
+          { name: 'Kipfilet', quantity: 500, unit: 'gram' },
+          { name: 'Rijst', quantity: 300, unit: 'gram' },
+          { name: 'Sojasaus', quantity: 4, unit: 'eetlepel' },
+          { name: 'Honing', quantity: 2, unit: 'eetlepel' },
+          { name: 'Knoflook', quantity: 2, unit: 'stuks' },
+          { name: 'Gember', quantity: 1, unit: 'eetlepel' },
+          { name: 'Sesamolie', quantity: 1, unit: 'eetlepel' },
+          { name: 'Broccoli', quantity: 300, unit: 'gram' },
+        ],
+      },
+      {
+        name: 'Griekse Salade',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800',
+        ingredients: [
+          { name: 'Komkommer', quantity: 1, unit: 'stuks' },
+          { name: 'Tomaten', quantity: 4, unit: 'stuks' },
+          { name: 'Rode ui', quantity: 1, unit: 'stuks' },
+          { name: 'Feta', quantity: 200, unit: 'gram' },
+          { name: 'Kalamata olijven', quantity: 100, unit: 'gram' },
+          { name: 'Olijfolie', quantity: 3, unit: 'eetlepel' },
+          { name: 'Oregano', quantity: 1, unit: 'theelepel' },
+          { name: 'Rode paprika', quantity: 1, unit: 'stuks' },
+        ],
+      },
+      {
+        name: 'Pannenkoeken',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=800',
+        ingredients: [
+          { name: 'Bloem', quantity: 300, unit: 'gram' },
+          { name: 'Melk', quantity: 500, unit: 'ml' },
+          { name: 'Eieren', quantity: 3, unit: 'stuks' },
+          { name: 'Boter', quantity: 50, unit: 'gram' },
+          { name: 'Zout', quantity: 1, unit: 'snuf' },
+          { name: 'Stroop', quantity: 1, unit: 'stuks' },
+        ],
+      },
+      {
+        name: 'Chili con Carne',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=800',
+        ingredients: [
+          { name: 'Gehakt', quantity: 500, unit: 'gram' },
+          { name: 'Kidneybonen', quantity: 2, unit: 'blik' },
+          { name: 'Gepelde tomaten', quantity: 1, unit: 'blik' },
+          { name: 'Ui', quantity: 2, unit: 'stuks' },
+          { name: 'Knoflook', quantity: 3, unit: 'stuks' },
+          { name: 'Rode paprika', quantity: 2, unit: 'stuks' },
+          { name: 'Komijnpoeder', quantity: 2, unit: 'theelepel' },
+          { name: 'Chilipoeder', quantity: 1, unit: 'theelepel' },
+          { name: 'Rijst', quantity: 300, unit: 'gram' },
+        ],
+      },
+      {
+        name: 'Caesarsalade met Kip',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=800',
+        ingredients: [
+          { name: 'Kipfilet', quantity: 400, unit: 'gram' },
+          { name: 'Romaine sla', quantity: 2, unit: 'stuks' },
+          { name: 'Parmezaanse kaas', quantity: 80, unit: 'gram' },
+          { name: 'Croutons', quantity: 100, unit: 'gram' },
+          { name: 'Ansjovis', quantity: 4, unit: 'stuks' },
+          { name: 'Knoflook', quantity: 1, unit: 'stuks' },
+          { name: 'Citroen', quantity: 1, unit: 'stuks' },
+          { name: 'Mayonaise', quantity: 3, unit: 'eetlepel' },
+        ],
+      },
+      {
+        name: 'Stamppot Boerenkool',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
+        ingredients: [
+          { name: 'Aardappelen', quantity: 1, unit: 'kg' },
+          { name: 'Boerenkool', quantity: 500, unit: 'gram' },
+          { name: 'Rookworst', quantity: 4, unit: 'stuks' },
+          { name: 'Melk', quantity: 100, unit: 'ml' },
+          { name: 'Boter', quantity: 50, unit: 'gram' },
+          { name: 'Mosterd', quantity: 2, unit: 'eetlepel' },
+          { name: 'Nootmuskaat', quantity: 1, unit: 'snuf' },
+        ],
+      },
+      {
+        name: 'Pad Thai',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800',
+        ingredients: [
+          { name: 'Rijstnoedels', quantity: 250, unit: 'gram' },
+          { name: 'Garnalen', quantity: 300, unit: 'gram' },
+          { name: 'Taugé', quantity: 200, unit: 'gram' },
+          { name: 'Eieren', quantity: 2, unit: 'stuks' },
+          { name: 'Pinda\'s', quantity: 50, unit: 'gram' },
+          { name: 'Limoen', quantity: 2, unit: 'stuks' },
+          { name: 'Vissaus', quantity: 3, unit: 'eetlepel' },
+          { name: 'Lente-ui', quantity: 4, unit: 'stuks' },
+          { name: 'Knoflook', quantity: 3, unit: 'stuks' },
+        ],
+      },
+      {
+        name: 'Risotto met Champignons',
+        servings: 4,
+        imageUrl: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=800',
+        ingredients: [
+          { name: 'Risottorijst', quantity: 350, unit: 'gram' },
+          { name: 'Champignons', quantity: 300, unit: 'gram' },
+          { name: 'Ui', quantity: 1, unit: 'stuks' },
+          { name: 'Knoflook', quantity: 2, unit: 'stuks' },
+          { name: 'Witte wijn', quantity: 150, unit: 'ml' },
+          { name: 'Groentebouillon', quantity: 1, unit: 'liter' },
+          { name: 'Parmezaanse kaas', quantity: 80, unit: 'gram' },
+          { name: 'Boter', quantity: 40, unit: 'gram' },
+          { name: 'Tijm', quantity: 1, unit: 'theelepel' },
+        ],
+      },
+    ];
+    defaultRecipes.forEach(r => {
+      state.recipes.push({
+        id: genId(),
+        name: r.name,
+        servings: r.servings,
+        imageUrl: r.imageUrl,
+        ingredients: r.ingredients.map(ing => ({
+          id: genId(),
+          name: ing.name.charAt(0).toUpperCase() + ing.name.slice(1),
+          quantity: parseFloat(ing.quantity) || 0,
+          unit: ing.unit || '',
+          category: CategoryMap.getDefaultCategory(ing.name),
+        })),
+        createdAt: Date.now(),
+      });
+    });
+    Store.save(state);
+  }
+  if (state.showAllRecipes === undefined) state.showAllRecipes = false;
+  if (state.activeTab !== 'boodschappen' && state.activeTab !== 'recepten') state.activeTab = 'boodschappen';
   // Always start on shopping list view after reload
   state.activeRecipeId = null;
   // Ensure each list has categoryOrder field (null = default order)
@@ -2123,10 +2345,10 @@ const UI = (() => {
     return rounded === Math.floor(rounded) ? rounded.toString() : rounded.toString();
   }
 
-  const sidebarLists = document.getElementById('sidebarLists');
-  const sidebarRecipes = document.getElementById('sidebarRecipes');
   const mainContent = document.getElementById('mainContent');
   const mainTitle = document.getElementById('mainTitle');
+  const mainTitleBtn = document.getElementById('mainTitleBtn');
+  const mainTitleText = document.getElementById('mainTitleText');
   const mainEl = document.getElementById('main');
   const btnGroupToggle = document.getElementById('btnGroupToggle');
 
@@ -2135,70 +2357,83 @@ const UI = (() => {
   let _selectedIngredients = null; // Set of ingredient IDs
 
   function renderAll() {
-    renderSidebar();
+    updateHeaderAndTabBar();
     renderMainContent();
     updateGroupToggle();
     updateRecipeMode();
   }
 
-  function renderSidebar() {
+  function updateHeaderAndTabBar() {
     const state = State.get();
-    const { lists, activeListId, activeRecipeId } = state;
+    const { activeTab, activeListId, activeRecipeId, showAllRecipes } = state;
 
-    // Render shopping lists
-    sidebarLists.innerHTML = lists.map(list => {
-      const active = list.id === activeListId && !activeRecipeId;
-      const activeCount = list.items.filter(i => !i.completed).length;
-      return `
-        <li class="sidebar-list-item ${active ? 'active' : ''}" data-list-id="${list.id}" role="option" aria-selected="${active}">
-          <div class="list-icon">&#9776;</div>
-          <span class="list-name">${esc(list.name)}</span>
-          ${activeCount > 0 ? `<span class="list-count">${activeCount}</span>` : ''}
-        </li>
-      `;
-    }).join('');
+    // Tab bar actief
+    mainEl.classList.remove('tab-boodschappen', 'tab-recepten');
+    mainEl.classList.add('tab-' + activeTab);
+    document.getElementById('tabBoodschappen').setAttribute('aria-selected', activeTab === 'boodschappen');
+    document.getElementById('tabRecepten').setAttribute('aria-selected', activeTab === 'recepten');
 
-    // Render recipes
-    const recipes = state.recipes || [];
-    if (recipes.length === 0) {
-      sidebarRecipes.innerHTML = '<li class="sidebar-recipes-empty">Nog geen recepten</li>';
-    } else {
-      sidebarRecipes.innerHTML = recipes.map(recipe => {
-        const active = recipe.id === activeRecipeId;
-        return `
-          <li class="sidebar-list-item ${active ? 'active' : ''}" data-recipe-id="${recipe.id}" role="option" aria-selected="${active}">
-            <div class="list-icon">🍳</div>
-            <span class="list-name">${esc(recipe.name)}</span>
-            <span class="list-count">${recipe.ingredients.length}</span>
-          </li>
-        `;
-      }).join('');
-    }
-
-    // Update title
-    if (state.activeRecipeId) {
-      const recipe = (state.recipes || []).find(r => r.id === state.activeRecipeId);
-      if (recipe) {
-        mainTitle.textContent = recipe.name;
-        document.title = recipe.name + ' — Recepten';
-      }
-    } else {
+    // Header titel: Boodschappen-tab = klikbare lijstnaam, Recepten-tab = vaste titel
+    if (activeTab === 'boodschappen') {
       const activeList = State.getActiveList();
-      mainTitle.textContent = activeList.name;
+      mainTitleBtn.style.display = 'flex';
+      mainTitle.style.display = 'none';
+      mainTitleText.textContent = activeList.name;
       document.title = activeList.name + ' — Boodschappen';
+    } else {
+      mainTitleBtn.style.display = 'none';
+      mainTitle.style.display = 'block';
+      if (showAllRecipes) {
+        mainTitle.textContent = 'Alle recepten';
+        document.title = 'Alle recepten — Boodschappen';
+      } else if (activeRecipeId) {
+        const recipe = (state.recipes || []).find(r => r.id === activeRecipeId);
+        mainTitle.textContent = recipe ? recipe.name : 'Recepten';
+        document.title = recipe ? recipe.name + ' — Recepten' : 'Recepten — Boodschappen';
+      } else {
+        mainTitle.textContent = 'Recepten';
+        document.title = 'Recepten — Boodschappen';
+      }
     }
+
+    // Nieuw recept-knop in header alleen op Recepten-tab (overview)
+    const showNewRecipeBtn = activeTab === 'recepten' && (showAllRecipes || !activeRecipeId);
+    document.getElementById('btnNewRecipeHeader').style.display = showNewRecipeBtn ? 'flex' : 'none';
+
+    // Lijst-knoppen alleen op Boodschappen-tab
+    const showListActions = activeTab === 'boodschappen';
+    document.getElementById('btnReorderCat').style.display = showListActions ? 'flex' : 'none';
+    document.getElementById('btnGroupToggle').style.display = showListActions ? 'flex' : 'none';
+    document.getElementById('btnEditList').style.display = showListActions ? 'flex' : 'none';
   }
 
   function updateRecipeMode() {
-    const isRecipe = !!State.get().activeRecipeId;
-    mainEl.classList.toggle('recipe-mode', isRecipe);
+    const state = State.get();
+    const isRecipe = !!state.activeRecipeId;
+    const isReceptenTab = state.activeTab === 'recepten';
+    mainEl.classList.toggle('recipe-mode', isReceptenTab && (isRecipe || state.showAllRecipes));
     document.getElementById('btnEditRecipe').style.display = isRecipe ? 'flex' : 'none';
+    // Terug-knop alleen op Recepten-tab wanneer je een enkel recept bekijkt
+    const showBack = isReceptenTab && isRecipe;
+    const btnBack = document.getElementById('btnBackRecipe');
+    btnBack.style.display = showBack ? 'flex' : 'none';
+    btnBack.setAttribute('aria-label', 'Terug naar overzicht');
   }
 
   function renderMainContent() {
     const state = State.get();
 
-    // Recipe mode
+    // Boodschappen-tab: altijd lijst
+    if (state.activeTab === 'boodschappen') {
+      renderListView();
+      return;
+    }
+
+    // Recepten-tab: overzicht of één recept
+    if (state.showAllRecipes) {
+      renderAllRecipesOverview();
+      return;
+    }
     if (state.activeRecipeId) {
       const recipe = (state.recipes || []).find(r => r.id === state.activeRecipeId);
       if (!recipe) {
@@ -2209,9 +2444,15 @@ const UI = (() => {
       renderRecipeView(recipe);
       return;
     }
+    // Recepten-tab maar geen recept gekozen: toon overzicht
+    State.update(s => { s.showAllRecipes = true; });
+    renderAllRecipesOverview();
+  }
 
-    // Normal shopping list mode
+  function renderListView() {
+    const state = State.get();
     const list = State.getActiveList();
+    if (!list) return;
     const activeItems = list.items.filter(i => !i.completed);
     const completedItems = list.items.filter(i => i.completed);
     const grouping = state.groupByCategory;
@@ -2251,6 +2492,51 @@ const UI = (() => {
     }
 
     mainContent.innerHTML = html;
+  }
+
+  function renderAllRecipesOverview() {
+    const recipes = State.get().recipes || [];
+    if (recipes.length === 0) {
+      mainContent.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🍳</div>
+          <div class="empty-title">Nog geen recepten</div>
+          <div class="empty-desc">Maak een recept aan met de + knop hierboven om hier door je recepten te bladeren.</div>
+        </div>
+      `;
+      return;
+    }
+    mainContent.innerHTML = `
+      <div class="recipes-overview">
+        <p class="recipes-overview-intro">Scroll door je recepten en klik op een kaart om het recept te openen.</p>
+        <div class="recipes-overview-grid">
+          ${recipes.map(r => {
+            const img = r.imageUrl
+              ? `<img src="${esc(r.imageUrl)}" alt="" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />`
+              : '';
+            const placeholder = r.imageUrl ? '<div class="recipe-card-ph" style="display:none">🍽️</div>' : '<div class="recipe-card-ph">🍽️</div>';
+            return `
+              <button type="button" class="recipe-card" data-recipe-id="${r.id}" aria-label="Open recept ${esc(r.name)}">
+                <div class="recipe-card-image">${img}${placeholder}</div>
+                <div class="recipe-card-body">
+                  <span class="recipe-card-name">${esc(r.name)}</span>
+                  <span class="recipe-card-meta">${r.servings} porties · ${r.ingredients.length} ingrediënten</span>
+                </div>
+              </button>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+    mainContent.querySelectorAll('.recipe-card').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.recipeId;
+        if (!id) return;
+        UI.resetRecipeViewState();
+        State.update(s => { s.activeRecipeId = id; s.showAllRecipes = false; });
+        UI.renderAll();
+      });
+    });
   }
 
   function renderRecipeView(recipe) {
@@ -2454,12 +2740,11 @@ const UI = (() => {
   function updateGroupToggle() {
     const state = State.get();
     const grouping = state.groupByCategory;
-    const isRecipe = !!state.activeRecipeId;
     btnGroupToggle.classList.toggle('active', grouping);
-    document.getElementById('btnReorderCat').style.display = (grouping && !isRecipe) ? 'flex' : 'none';
+    document.getElementById('btnReorderCat').style.display = (grouping && state.activeTab === 'boodschappen') ? 'flex' : 'none';
   }
 
-  return { renderAll, renderSidebar, renderMainContent, updateGroupToggle, resetRecipeViewState };
+  return { renderAll, updateHeaderAndTabBar, renderMainContent, updateGroupToggle, resetRecipeViewState };
 })();
 
 
@@ -2580,7 +2865,10 @@ const Palette = (() => {
     const state = State.get();
     const lower = query.toLowerCase();
 
-    // Combine lists and recipes into one array
+    // "Alle recepten" optie (bij lege zoekterm of zoekterm "alle")
+    const allRecipesItem = (!query || 'alle recepten'.includes(lower)) && (state.recipes || []).length > 0
+      ? [{ type: 'all-recipes', id: null, name: 'Alle recepten', count: state.recipes.length, icon: '📖' }]
+      : [];
     const listItems = state.lists
       .filter(l => !query || l.name.toLowerCase().includes(lower))
       .map(l => ({ type: 'list', id: l.id, name: l.name, count: l.items.filter(it => !it.completed).length, icon: '&#9776;' }));
@@ -2589,7 +2877,7 @@ const Palette = (() => {
       .filter(r => !query || r.name.toLowerCase().includes(lower))
       .map(r => ({ type: 'recipe', id: r.id, name: r.name, count: r.ingredients.length, icon: '🍳' }));
 
-    filtered = [...listItems, ...recipeItems];
+    filtered = [...allRecipesItem, ...listItems, ...recipeItems];
 
     results.innerHTML = filtered.map((item, i) => {
       return `
@@ -2617,16 +2905,18 @@ const Palette = (() => {
   function select() {
     const item = filtered[highlighted >= 0 ? highlighted : 0];
     if (!item) return;
-    if (item.type === 'recipe') {
+    if (item.type === 'all-recipes') {
+      State.update(s => { s.activeTab = 'recepten'; s.showAllRecipes = true; s.activeRecipeId = null; });
       UI.resetRecipeViewState();
-      State.update(s => { s.activeRecipeId = item.id; });
+    } else if (item.type === 'recipe') {
+      State.update(s => { s.activeTab = 'recepten'; s.activeRecipeId = item.id; s.showAllRecipes = false; });
+      UI.resetRecipeViewState();
     } else {
-      State.update(s => { s.activeListId = item.id; s.activeRecipeId = null; });
+      State.update(s => { s.activeTab = 'boodschappen'; s.activeListId = item.id; s.activeRecipeId = null; s.showAllRecipes = false; });
       UI.resetRecipeViewState();
     }
     UI.renderAll();
     close();
-    closeSidebar();
   }
 
   // Events
@@ -2660,62 +2950,56 @@ const Palette = (() => {
    EVENT HANDLERS
    ============================================================ */
 
-// --- Sidebar list switching ---
-document.getElementById('sidebarLists').addEventListener('click', (e) => {
-  const item = e.target.closest('.sidebar-list-item');
-  if (!item) return;
-  State.update(s => { s.activeListId = item.dataset.listId; s.activeRecipeId = null; });
-  UI.resetRecipeViewState();
-  UI.renderAll();
-  closeSidebar();
-});
-
-// --- Sidebar recipe switching ---
-document.getElementById('sidebarRecipes').addEventListener('click', (e) => {
-  const item = e.target.closest('.sidebar-list-item');
-  if (!item || !item.dataset.recipeId) return;
-  UI.resetRecipeViewState();
-  State.update(s => { s.activeRecipeId = item.dataset.recipeId; });
-  UI.renderAll();
-  closeSidebar();
-});
-
-// --- Back from recipe ---
-document.getElementById('btnBackRecipe').addEventListener('click', () => {
-  State.update(s => { s.activeRecipeId = null; });
+// --- Tab bar ---
+document.getElementById('tabBoodschappen').addEventListener('click', () => {
+  State.update(s => { s.activeTab = 'boodschappen'; s.showAllRecipes = false; s.activeRecipeId = null; });
   UI.resetRecipeViewState();
   UI.renderAll();
 });
 
-// --- Edit recipe ---
-document.getElementById('btnEditRecipe').addEventListener('click', () => {
-  const recipeId = State.get().activeRecipeId;
-  if (recipeId) Recipe.openEditModal(recipeId);
+document.getElementById('tabRecepten').addEventListener('click', () => {
+  State.update(s => { s.activeTab = 'recepten'; s.showAllRecipes = true; s.activeRecipeId = null; });
+  UI.resetRecipeViewState();
+  UI.renderAll();
 });
 
-// --- Mobile sidebar toggle ---
-const sidebar = document.getElementById('sidebar');
-const backdrop = document.getElementById('sidebarBackdrop');
-
-document.getElementById('btnMenu').addEventListener('click', () => {
-  sidebar.classList.add('open');
-  backdrop.classList.add('show');
+// --- Lijst kiezen (klik op titel in Boodschappen-tab) ---
+document.getElementById('mainTitleBtn').addEventListener('click', () => {
+  const state = State.get();
+  const lists = state.lists || [];
+  const activeListId = state.activeListId;
+  const listItemsHtml = lists.map(list => {
+    const active = list.id === activeListId;
+    const count = list.items.filter(i => !i.completed).length;
+    return `
+      <button type="button" class="list-picker-item ${active ? 'active' : ''}" data-list-id="${list.id}">
+        <span class="list-icon">&#9776;</span>
+        <span class="list-name">${esc(list.name)}</span>
+        ${count > 0 ? `<span class="list-count">${count}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+  Modal.open(`
+    <h2>Kies een lijst</h2>
+    <div class="list-picker-list" style="max-height:280px;overflow-y:auto;margin-bottom:12px">
+      ${listItemsHtml}
+    </div>
+    <button type="button" class="btn-new-list" id="listPickerNewList">+ Nieuwe lijst</button>
+  `);
+  document.querySelectorAll('.list-picker-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      State.update(s => { s.activeListId = btn.dataset.listId; });
+      Modal.close();
+      UI.renderAll();
+    });
+  });
+  document.getElementById('listPickerNewList').addEventListener('click', () => {
+    Modal.close();
+    openNewListModal();
+  });
 });
 
-function closeSidebar() {
-  sidebar.classList.remove('open');
-  backdrop.classList.remove('show');
-}
-backdrop.addEventListener('click', closeSidebar);
-
-// --- New recipe ---
-document.getElementById('btnNewRecipe').addEventListener('click', () => {
-  closeSidebar();
-  Recipe.openCreateModal();
-});
-
-// --- New list ---
-document.getElementById('btnNewList').addEventListener('click', () => {
+function openNewListModal() {
   Modal.open(`
     <h2>Nieuwe lijst</h2>
     <input class="modal-input" id="newListInput" placeholder="Naam van de lijst" maxlength="50">
@@ -2724,10 +3008,8 @@ document.getElementById('btnNewList').addEventListener('click', () => {
       <button class="modal-btn primary" id="confirmNewList">Maak aan</button>
     </div>
   `);
-
   const inp = document.getElementById('newListInput');
   const btn = document.getElementById('confirmNewList');
-
   function create() {
     const name = inp.value.trim();
     if (!name) return;
@@ -2738,11 +3020,34 @@ document.getElementById('btnNewList').addEventListener('click', () => {
     });
     Modal.close();
     UI.renderAll();
-    closeSidebar();
+    Toast.show(`"${name}" aangemaakt`);
   }
-
   btn.addEventListener('click', create);
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') create(); });
+  setTimeout(() => inp.focus(), 50);
+}
+
+// --- Back from recipe of alle-recepten view ---
+document.getElementById('btnBackRecipe').addEventListener('click', () => {
+  const state = State.get();
+  if (state.activeRecipeId) {
+    State.update(s => { s.activeRecipeId = null; });
+    UI.resetRecipeViewState();
+  } else if (state.showAllRecipes) {
+    State.update(s => { s.showAllRecipes = false; });
+  }
+  UI.renderAll();
+});
+
+// --- Edit recipe ---
+document.getElementById('btnEditRecipe').addEventListener('click', () => {
+  const recipeId = State.get().activeRecipeId;
+  if (recipeId) Recipe.openEditModal(recipeId);
+});
+
+// --- Nieuw recept (header op Recepten-tab) ---
+document.getElementById('btnNewRecipeHeader').addEventListener('click', () => {
+  Recipe.openCreateModal();
 });
 
 // --- Edit list (rename / delete) ---
@@ -3244,7 +3549,7 @@ document.getElementById('mainContent').addEventListener('click', (e) => {
           }
         });
         UI.renderMainContent();
-        UI.renderSidebar();
+        UI.updateHeaderAndTabBar();
         if (deletedItem) {
           Toast.show(`"${deletedItem.name}" verwijderd`, {
             label: 'Ongedaan maken',
@@ -3254,7 +3559,7 @@ document.getElementById('mainContent').addEventListener('click', (e) => {
                 if (list) list.items.splice(deletedIndex, 0, deletedItem);
               });
               UI.renderMainContent();
-              UI.renderSidebar();
+              UI.updateHeaderAndTabBar();
             }
           });
         }
@@ -3280,7 +3585,7 @@ document.getElementById('mainContent').addEventListener('click', (e) => {
     });
     setTimeout(() => {
       UI.renderMainContent();
-      UI.renderSidebar();
+      UI.updateHeaderAndTabBar();
     }, 200);
   }
 
@@ -3309,7 +3614,6 @@ document.addEventListener('keydown', (e) => {
     Modal.close();
     Palette.close();
     Suggestions.hide();
-    closeSidebar();
   }
 });
 
