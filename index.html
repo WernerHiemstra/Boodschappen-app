@@ -1386,7 +1386,25 @@ a { color: var(--accent); text-decoration: none; }
   30% { background: rgba(52, 199, 89, 0.2); }
   100% { background: transparent; }
 }
+
+/* Offline indicator */
+body.offline::after {
+  content: 'Offline';
+  position: fixed;
+  top: var(--safe-top, 0);
+  right: 16px;
+  padding: 4px 12px;
+  background: #ff9500;
+  color: white;
+  border-radius: 0 0 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 9999;
+}
+/* Syncing indicator */
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
@@ -1413,6 +1431,9 @@ a { color: var(--accent); text-decoration: none; }
         </button>
         <button class="btn-icon" id="btnGroupToggle" aria-label="Groeperen op categorie" title="Groeperen op categorie">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="11" y="2" width="5" height="5" rx="1"/><rect x="2" y="11" width="5" height="5" rx="1"/><rect x="11" y="11" width="5" height="5" rx="1"/></svg>
+        </button>
+        <button class="btn-icon" id="btnShareLink" aria-label="Deel link kopiëren" title="Deel link kopiëren" style="display:none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/><polyline points="9,3 15,3 15,9"/><line x1="14" y1="4" x2="8" y2="10"/></svg>
         </button>
         <button class="btn-icon" id="btnEditList" aria-label="Lijst bewerken" title="Lijst bewerken">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="3.5" r="1"/><circle cx="9" cy="9" r="1"/><circle cx="9" cy="14.5" r="1"/></svg>
@@ -1474,6 +1495,117 @@ a { color: var(--accent); text-decoration: none; }
      JAVASCRIPT — Modular app logic
      ============================================================ -->
 <script>
+/* ============================================================
+   UTILITY: ID Generator (moved to top for use by all modules)
+   ============================================================ */
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+
+/* ============================================================
+   MODULE: Sync (Firebase real-time sync)
+   ============================================================ */
+const Sync = (() => {
+  // Firebase config — REPLACE these values with your Firebase project config
+  const firebaseConfig = {
+    apiKey: "AIzaSyCUknfD_tZWELd0NmCBvKx3RGuuwmmvqeo",
+    authDomain: "boodschappen-back-end.firebaseapp.com",
+    databaseURL: "https://boodschappen-back-end-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "boodschappen-back-end",
+    storageBucket: "boodschappen-back-end.firebasestorage.app",
+    messagingSenderId: "599256456069",
+    appId: "1:599256456069:web:acfff2ddd09709b84742ec",
+    measurementId: "G-0763XJ1LF0"
+  };
+
+  let _enabled = false;
+  let _ref = null;
+  let _onRemoteUpdate = null;
+  let _writeTimeout = null;
+  let _suppressRemote = false;
+
+  // Keys that are shared across devices (not local UI state)
+  const SHARED_KEYS = ['lists', 'recipes', 'weekplan', 'itemHistory', 'categoryOverrides'];
+
+  // Initialize Firebase (may fail if config is placeholder)
+  try {
+    if (firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith('REPLACE')) {
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.database();
+
+      // Get or create share ID from URL hash
+      function getShareId() {
+        const hash = location.hash;
+        const match = hash.match(/share=([a-zA-Z0-9_-]+)/);
+        if (match) return match[1];
+        const id = genId() + genId();
+        history.replaceState(null, '', '#share=' + id);
+        return id;
+      }
+
+      const shareId = getShareId();
+      _ref = db.ref('shares/' + shareId);
+      _enabled = true;
+
+      // Connection status
+      db.ref('.info/connected').on('value', snap => {
+        document.body.classList.toggle('offline', !snap.val());
+      });
+    }
+  } catch (e) {
+    console.warn('Firebase init failed (running in local-only mode):', e.message);
+  }
+
+  function extractShared(state) {
+    const shared = {};
+    SHARED_KEYS.forEach(k => { if (state[k] !== undefined) shared[k] = state[k]; });
+    return shared;
+  }
+
+  function push(state) {
+    if (!_enabled || !_ref) return;
+    clearTimeout(_writeTimeout);
+    _suppressRemote = true;
+    _writeTimeout = setTimeout(() => {
+      _ref.set(extractShared(state))
+        .then(() => { _suppressRemote = false; })
+        .catch(err => {
+          console.warn('Firebase write failed:', err);
+          _suppressRemote = false;
+        });
+    }, 300);
+  }
+
+  function listen(callback) {
+    if (!_enabled || !_ref) return;
+    _onRemoteUpdate = callback;
+    _ref.on('value', snapshot => {
+      if (_suppressRemote) return;
+      const data = snapshot.val();
+      if (data && _onRemoteUpdate) {
+        _onRemoteUpdate(data);
+      }
+    });
+  }
+
+  async function pull() {
+    if (!_enabled || !_ref) return null;
+    try {
+      const snapshot = await _ref.once('value');
+      return snapshot.val();
+    } catch (e) {
+      console.warn('Firebase read failed:', e);
+      return null;
+    }
+  }
+
+  function getShareUrl() { return location.href; }
+
+  return { push, listen, pull, SHARED_KEYS, enabled: () => _enabled, getShareUrl };
+})();
+
+
 /* ============================================================
    MODULE: Category Map
    ============================================================ */
@@ -1817,18 +1949,31 @@ const State = (() => {
   // Ensure each list has categoryOrder field (null = default order)
   state.lists.forEach(l => { if (!l.hasOwnProperty('categoryOrder')) l.categoryOrder = null; });
 
+  function mergeRemote(remote) {
+    if (!remote) return;
+    Sync.SHARED_KEYS.forEach(k => { if (remote[k] !== undefined) state[k] = remote[k]; });
+    if (!state.lists || state.lists.length === 0) {
+      state.lists = [{ id: genId(), name: 'Boodschappen', items: [], createdAt: Date.now(), categoryOrder: null }];
+      state.activeListId = state.lists[0].id;
+    }
+    state.lists.forEach(l => { if (!l.hasOwnProperty('categoryOrder')) l.categoryOrder = null; });
+    if (state.activeListId && !state.lists.some(l => l.id === state.activeListId))
+      state.activeListId = state.lists[0].id;
+  }
+
   function get() { return state; }
 
   function update(fn) {
     fn(state);
     Store.save(state);
+    if (Sync.enabled()) Sync.push(state);
   }
 
   function getActiveList() {
     return state.lists.find(l => l.id === state.activeListId) || state.lists[0];
   }
 
-  return { get, update, getActiveList };
+  return { get, update, getActiveList, mergeRemote };
 })();
 
 
@@ -3650,6 +3795,24 @@ function esc(str) {
    INIT
    ============================================================ */
 UI.renderAll();
+if (Sync.enabled()) {
+  Sync.listen(remote => {
+    State.mergeRemote(remote);
+    Store.save(State.get());
+    UI.renderAll();
+  });
+  const btnShare = document.getElementById('btnShareLink');
+  if (btnShare) {
+    btnShare.style.display = '';
+    btnShare.addEventListener('click', () => {
+      navigator.clipboard.writeText(Sync.getShareUrl()).then(() => {
+        Toast.show('Link gekopieerd');
+      }).catch(() => {
+        Toast.show('Kopie mislukt');
+      });
+    });
+  }
+}
 addInput.focus();
 </script>
 </body>
