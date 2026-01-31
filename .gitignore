@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local project settings (Cursor/Claude)
+.claude/
+.cursor/
+
+# Logs & temp
+*.log
+*.tmp
+.cache/
+
+# Optional: uncomment if you add Node/npm later
+# node_modules/
+# .env
+# .env.local
