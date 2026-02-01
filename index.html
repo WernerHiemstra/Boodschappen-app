@@ -159,10 +159,10 @@ a { color: var(--accent); text-decoration: none; }
   align-items: center;
 }
 .main-title-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  width: 100%;
+  max-width: 100%;
   min-width: 0;
   padding: var(--space-xs) var(--space-sm);
   margin: calc(-1 * var(--space-xs)) calc(-1 * var(--space-sm));
@@ -176,17 +176,22 @@ a { color: var(--accent); text-decoration: none; }
 }
 .main-title-btn:hover { background: var(--separator); }
 .main-title-btn .main-title-text {
-  flex: 1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   font-size: 17px;
   font-weight: 600;
+  min-width: 0;
 }
 .main-title-chevron {
-  font-size: 12px;
-  color: var(--text-tertiary);
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+.main-title-chevron svg {
+  display: block;
 }
 .main-title {
   flex: 1;
@@ -1421,7 +1426,7 @@ body.offline::after {
       <div class="main-title-wrap">
         <button type="button" class="main-title-btn" id="mainTitleBtn" aria-label="Lijst wisselen" style="display:none">
           <span class="main-title-text" id="mainTitleText">Boodschappen</span>
-          <span class="main-title-chevron" aria-hidden="true">▾</span>
+          <span class="main-title-chevron" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,5 6,8 9,5"/></svg></span>
         </button>
         <h2 class="main-title" id="mainTitle">Boodschappen</h2>
       </div>
@@ -1715,7 +1720,11 @@ const CategoryMap = (() => {
     return (list && list.categoryOrder) ? list.categoryOrder : categoryOrder;
   }
 
-  return { getCategory, getDefaultCategory, categoryOrder, categoryEmojis, getOrderForList };
+  function getKnownProductNames() {
+    return Object.keys(map);
+  }
+
+  return { getCategory, getDefaultCategory, categoryOrder, categoryEmojis, getOrderForList, getKnownProductNames };
 })();
 
 
@@ -1949,9 +1958,42 @@ const State = (() => {
   // Ensure each list has categoryOrder field (null = default order)
   state.lists.forEach(l => { if (!l.hasOwnProperty('categoryOrder')) l.categoryOrder = null; });
 
+  // Vaste foto-URL's per standaardrecept (Unsplash: zelfde URL = zelfde foto, altijd)
+  const defaultRecipeImageUrls = {
+    'Pasta Carbonara': 'https://images.unsplash.com/photo-1612874742237-6526221588e3?w=800',
+    'Tomatensoep': 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800',
+    'Kip Teriyaki met Rijst': 'https://images.unsplash.com/photo-1609183480237-ccbc4bbb3724?w=800',
+    'Griekse Salade': 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=800',
+    'Pannenkoeken': 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=800',
+    'Chili con Carne': 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=800',
+    'Caesarsalade met Kip': 'https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=800',
+    'Stamppot Boerenkool': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800',
+    'Pad Thai': 'https://images.unsplash.com/photo-1559314809-0d155014e29e?w=800',
+    'Risotto met Champignons': 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=800',
+  };
+  // Migratie: recepten met wisselende/verkeerde foto (loremflickr, picsum) → vaste Unsplash-foto
+  const needsStableImage = url => !url || url.includes('picsum.photos') || url.includes('loremflickr.com');
+  let didMigrateRecipeImages = false;
+  (state.recipes || []).forEach(r => {
+    const wantUrl = defaultRecipeImageUrls[r.name];
+    if (wantUrl && needsStableImage(r.imageUrl)) {
+      r.imageUrl = wantUrl;
+      didMigrateRecipeImages = true;
+    }
+  });
+  if (didMigrateRecipeImages) {
+    Store.save(state);
+    if (Sync.enabled()) Sync.push(state);
+  }
+
   function mergeRemote(remote) {
     if (!remote) return;
     Sync.SHARED_KEYS.forEach(k => { if (remote[k] !== undefined) state[k] = remote[k]; });
+    // Standaardrecepten met wisselende/verkeerde foto → vaste Unsplash-foto
+    (state.recipes || []).forEach(r => {
+      const wantUrl = defaultRecipeImageUrls[r.name];
+      if (wantUrl && needsStableImage(r.imageUrl)) r.imageUrl = wantUrl;
+    });
     if (!state.lists || state.lists.length === 0) {
       state.lists = [{ id: genId(), name: 'Boodschappen', items: [], createdAt: Date.now(), categoryOrder: null }];
       state.activeListId = state.lists[0].id;
@@ -2913,10 +2955,10 @@ const Suggestions = (() => {
     const lower = query.toLowerCase();
     const history = State.get().itemHistory;
 
-    // Combine history items with category map keys
+    // Combine history (eerder toegevoegd) met standaardproducten uit CategoryMap
     const allNames = new Set([
       ...Object.keys(history),
-      ...Object.keys(getCategoryMapKeys()),
+      ...CategoryMap.getKnownProductNames(),
     ]);
 
     // Filter & sort
@@ -2972,15 +3014,6 @@ const Suggestions = (() => {
   }
 
   function getItems() { return currentItems; }
-
-  // Expose category map keys for suggestions
-  function getCategoryMapKeys() {
-    // This is a bit of a hack — we mirror the keys from CategoryMap
-    // In a larger app, CategoryMap would expose this directly
-    const keys = {};
-    // We'll use the history plus some common items
-    return keys;
-  }
 
   return { update, hide, navigate, getCurrent, getItems };
 })();
