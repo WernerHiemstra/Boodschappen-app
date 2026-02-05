@@ -1584,6 +1584,8 @@ const Sync = (() => {
       if (data && _onRemoteUpdate) {
         _onRemoteUpdate(data);
       }
+    }, err => {
+      console.warn('Firebase listener error (controleer database-regels):', err.message || err);
     });
   }
 
@@ -1981,11 +1983,17 @@ const State = (() => {
   function mergeRemote(remote) {
     if (!remote) return;
     Sync.SHARED_KEYS.forEach(k => { if (remote[k] !== undefined) state[k] = remote[k]; });
-    // Firebase RTDB verwijdert lege arrays/objecten — herstel standaardwaarden
-    if (!state.itemHistory) state.itemHistory = {};
-    if (!state.categoryOverrides) state.categoryOverrides = {};
-    if (!state.weekplan) state.weekplan = {};
-    if (Array.isArray(state.lists)) state.lists.forEach(l => { if (!l.items) l.items = []; });
+    // Firebase RTDB slaat arrays op als objecten en verwijdert lege arrays/objecten
+    // — normaliseer terug naar de verwachte types
+    if (state.lists && !Array.isArray(state.lists)) state.lists = Object.values(state.lists);
+    if (state.recipes && !Array.isArray(state.recipes)) state.recipes = Object.values(state.recipes);
+    if (!state.itemHistory || typeof state.itemHistory !== 'object') state.itemHistory = {};
+    if (!state.categoryOverrides || typeof state.categoryOverrides !== 'object') state.categoryOverrides = {};
+    if (!state.weekplan || typeof state.weekplan !== 'object') state.weekplan = {};
+    if (Array.isArray(state.lists)) state.lists.forEach(l => {
+      if (!l.items) l.items = [];
+      else if (!Array.isArray(l.items)) l.items = Object.values(l.items);
+    });
     // Standaardrecepten met wisselende/verkeerde foto → vaste Unsplash-foto
     (state.recipes || []).forEach(r => {
       const wantUrl = defaultRecipeImageUrls[r.name];
@@ -2009,6 +2017,7 @@ const State = (() => {
   }
 
   function getActiveList() {
+    if (!Array.isArray(state.lists) || state.lists.length === 0) return null;
     return state.lists.find(l => l.id === state.activeListId) || state.lists[0];
   }
 
@@ -2484,10 +2493,11 @@ const UI = (() => {
     // Header titel: Boodschappen-tab = klikbare lijstnaam, Recepten-tab = vaste titel
     if (activeTab === 'boodschappen') {
       const activeList = State.getActiveList();
+      const listName = activeList ? activeList.name : 'Boodschappen';
       mainTitleBtn.style.display = 'flex';
       mainTitle.style.display = 'none';
-      mainTitleText.textContent = activeList.name;
-      document.title = activeList.name + ' — Boodschappen';
+      mainTitleText.textContent = listName;
+      document.title = listName + ' — Boodschappen';
     } else {
       mainTitleBtn.style.display = 'none';
       mainTitle.style.display = 'block';
