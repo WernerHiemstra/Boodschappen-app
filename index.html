@@ -1976,7 +1976,6 @@ const State = (() => {
   });
   if (didMigrateRecipeImages) {
     Store.save(state);
-    if (Sync.enabled()) Sync.push(state);
   }
 
   function mergeRemote(remote) {
