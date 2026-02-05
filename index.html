@@ -1981,6 +1981,11 @@ const State = (() => {
   function mergeRemote(remote) {
     if (!remote) return;
     Sync.SHARED_KEYS.forEach(k => { if (remote[k] !== undefined) state[k] = remote[k]; });
+    // Firebase RTDB verwijdert lege arrays/objecten — herstel standaardwaarden
+    if (!state.itemHistory) state.itemHistory = {};
+    if (!state.categoryOverrides) state.categoryOverrides = {};
+    if (!state.weekplan) state.weekplan = {};
+    if (Array.isArray(state.lists)) state.lists.forEach(l => { if (!l.items) l.items = []; });
     // Standaardrecepten met wisselende/verkeerde foto → vaste Unsplash-foto
     (state.recipes || []).forEach(r => {
       const wantUrl = defaultRecipeImageUrls[r.name];
@@ -2561,8 +2566,9 @@ const UI = (() => {
     const state = State.get();
     const list = State.getActiveList();
     if (!list) return;
-    const activeItems = list.items.filter(i => !i.completed);
-    const completedItems = list.items.filter(i => i.completed);
+    const items = list.items || [];
+    const activeItems = items.filter(i => !i.completed);
+    const completedItems = items.filter(i => i.completed);
     const grouping = state.groupByCategory;
 
     if (activeItems.length === 0 && completedItems.length === 0) {
@@ -2696,7 +2702,7 @@ const UI = (() => {
         const id = btn.dataset.recipeId;
         if (!id) return;
         UI.resetRecipeViewState();
-        State.update(s => { s.activeRecipeId = id; s.showAllRecipes = false; });
+        State.update(s => { s.activeTab = 'recepten'; s.activeRecipeId = id; s.showAllRecipes = false; });
         UI.renderAll();
       });
     });
@@ -3845,7 +3851,7 @@ if (Sync.enabled()) {
     });
   }
 }
-addInput.focus();
+if (addInput) addInput.focus();
 </script>
 </body>
 </html>
