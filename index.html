@@ -1528,7 +1528,6 @@ const Sync = (() => {
   let _ref = null;
   let _onRemoteUpdate = null;
   let _writeTimeout = null;
-  let _suppressRemote = false;
 
   // Keys that are shared across devices (not local UI state)
   const SHARED_KEYS = ['lists', 'recipes', 'weekplan', 'itemHistory', 'categoryOverrides'];
@@ -1571,14 +1570,9 @@ const Sync = (() => {
   function push(state) {
     if (!_enabled || !_ref) return;
     clearTimeout(_writeTimeout);
-    _suppressRemote = true;
     _writeTimeout = setTimeout(() => {
       _ref.set(extractShared(state))
-        .then(() => { _suppressRemote = false; })
-        .catch(err => {
-          console.warn('Firebase write failed:', err);
-          _suppressRemote = false;
-        });
+        .catch(err => console.warn('Firebase write failed:', err));
     }, 300);
   }
 
@@ -1586,7 +1580,6 @@ const Sync = (() => {
     if (!_enabled || !_ref) return;
     _onRemoteUpdate = callback;
     _ref.on('value', snapshot => {
-      if (_suppressRemote) return;
       const data = snapshot.val();
       if (data && _onRemoteUpdate) {
         _onRemoteUpdate(data);
@@ -3829,6 +3822,13 @@ function esc(str) {
    ============================================================ */
 UI.renderAll();
 if (Sync.enabled()) {
+  Sync.pull().then(remote => {
+    if (remote) {
+      State.mergeRemote(remote);
+      Store.save(State.get());
+      UI.renderAll();
+    }
+  });
   Sync.listen(remote => {
     State.mergeRemote(remote);
     Store.save(State.get());
